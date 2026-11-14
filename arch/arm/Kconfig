@@ -1652,7 +1652,9 @@ endmenu
 
 menu "CPU Power Management"
 
+source "drivers/cpufreq/Kconfig"
 
+source "drivers/cpuidle/Kconfig"
 
 endmenu
 

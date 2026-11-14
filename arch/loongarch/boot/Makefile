@@ -28,3 +28,5 @@ else
 EFI_ZBOOT_BFD_TARGET   := elf64-loongarch
 EFI_ZBOOT_MACH_TYPE    := LOONGARCH64
 endif
+
+include $(srctree)/drivers/firmware/efi/libstub/Makefile.zboot

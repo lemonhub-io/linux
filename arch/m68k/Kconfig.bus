@@ -56,5 +56,6 @@ config ATARI_ROM_ISA
 	  The only driver currently using this adapter is the EtherNEC
 	  driver for RTL8019AS based NE2000 compatible network cards.
 
+source "drivers/zorro/Kconfig"
 
 endif

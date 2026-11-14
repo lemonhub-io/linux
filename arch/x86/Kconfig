@@ -2709,6 +2709,7 @@ config ARCH_HIBERNATION_HEADER
 
 source "kernel/power/Kconfig"
 
+source "drivers/acpi/Kconfig"
 
 config X86_APM_BOOT
 	def_bool y
@@ -2829,8 +2830,11 @@ config APM_ALLOW_INTS
 
 endif # APM
 
+source "drivers/cpufreq/Kconfig"
 
+source "drivers/cpuidle/Kconfig"
 
+source "drivers/idle/Kconfig"
 
 endmenu
 

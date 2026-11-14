@@ -235,6 +235,7 @@ config HOTPLUG_CPU
 	  Say N if you want to disable CPU hotplug.
 
 if SPARC64
+source "drivers/cpufreq/Kconfig"
 endif
 
 config US3_MC
@@ -464,3 +465,4 @@ config ARCH_USERFLAGS
 	default "-m64" if 64BIT
 	default "-m32"
 
+source "drivers/sbus/char/Kconfig"

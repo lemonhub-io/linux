@@ -54,3 +54,5 @@ $(obj)/loader.bin: $(obj)/loader FORCE
 EFI_ZBOOT_PAYLOAD	:= Image
 EFI_ZBOOT_BFD_TARGET	:= elf$(BITS)-littleriscv
 EFI_ZBOOT_MACH_TYPE	:= RISCV$(BITS)
+
+include $(srctree)/drivers/firmware/efi/libstub/Makefile.zboot

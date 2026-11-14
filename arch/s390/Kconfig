@@ -713,6 +713,7 @@ config KERNEL_IMAGE_BASE
 
 endmenu
 
+source "drivers/cpuidle/Kconfig"
 
 menu "Memory setup"
 
