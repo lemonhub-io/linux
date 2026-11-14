@@ -70,3 +70,7 @@ By making a contribution to this project, I certify that:
 ## Enforcement
 
 A pull request that fails either rule is closed. The closing note names each missed requirement. The way to land the work is to open a new pull request that meets this specification.
+
+## Kernel CI
+
+After the proposal and the DCO sign-off pass, CI compiles the kernel and then runs the kernel tests that cover the changed files. Compilation comes first. Tests run only after that build succeeds. A failure of either step closes the pull request.

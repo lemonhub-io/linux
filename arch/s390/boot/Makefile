@@ -23,8 +23,6 @@ KBUILD_AFLAGS += $(CC_FLAGS_MARCH_MINIMUM) -D__DISABLE_EXPORTS
 KBUILD_CFLAGS += $(CC_FLAGS_MARCH_MINIMUM) -D__DISABLE_EXPORTS
 KBUILD_CFLAGS += $(call cc-option, -Wno-default-const-init-unsafe)
 
-CFLAGS_sclp_early_core.o += -I$(srctree)/drivers/s390/char
-
 # string.o implements standard library functions like memset/memcpy etc.
 # Use -ffreestanding to ensure that the compiler does not try to "optimize"
 # them into calls to themselves.

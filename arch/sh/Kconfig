@@ -523,7 +523,6 @@ config SH_CLK_CPG_LEGACY
 endmenu
 
 menu "CPU Frequency scaling"
-source "drivers/cpufreq/Kconfig"
 endmenu
 
 source "arch/sh/drivers/Kconfig"
@@ -632,7 +631,6 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
-source "drivers/sh/Kconfig"
 
 endmenu
 
@@ -753,6 +751,5 @@ menu "Power management options (EXPERIMENTAL)"
 
 source "kernel/power/Kconfig"
 
-source "drivers/cpuidle/Kconfig"
 
 endmenu
