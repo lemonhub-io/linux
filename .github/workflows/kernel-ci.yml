@@ -66,6 +66,12 @@ jobs:
     if: needs.prepare.outputs.number != ''
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    concurrency:
+      group: kernel-ci-${{ needs.prepare.outputs.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      actions: write
     steps:
       - name: Check out the pull request
         uses: actions/checkout@v4
@@ -74,12 +80,23 @@ jobs:
           ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
           fetch-depth: 1
+      - name: Restore the compiler cache
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.cache/ccache
+          key: ccache-defconfig-vmlinux-${{ runner.os }}-${{ needs.prepare.outputs.sha }}
+          restore-keys: |
+            ccache-defconfig-vmlinux-${{ runner.os }}-
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y build-essential flex bison bc libssl-dev libelf-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential flex bison bc libssl-dev libelf-dev ccache
       - name: Compile the kernel
         run: |
+          export CCACHE_MAXSIZE=2G
+          export CCACHE_DIR="${HOME}/.cache/ccache"
+          mkdir -p "$CCACHE_DIR"
           make defconfig
-          make -j"$(nproc)" vmlinux
+          make CC="ccache gcc" HOSTCC="ccache gcc" -j"$(nproc)" vmlinux
 
   test:
     needs: [prepare, compile]
@@ -96,7 +113,48 @@ jobs:
           fetch-depth: 1
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: true
+      - name: Decide whether host tests apply
+        id: plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ needs.prepare.outputs.base }}
+          HEAD_SHA: ${{ needs.prepare.outputs.sha }}
+          FILES_PATH: ${{ runner.temp }}/changed-files.txt
+        run: |
+          truncated=$(python3 - << 'PY'
+          import json, os, urllib.request
+          base_sha = os.environ["BASE_SHA"]
+          head_sha = os.environ["HEAD_SHA"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          url = f"https://api.github.com/repos/{repo}/compare/{base_sha}...{head_sha}"
+          request = urllib.request.Request(url, headers={
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "kernel-ci",
+          })
+          with urllib.request.urlopen(request) as response:
+              data = json.load(response)
+          files = data.get("files") or []
+          with open(os.environ["FILES_PATH"], "w") as handle:
+              for item in files:
+                  for key in ("filename", "previous_filename"):
+                      name = item.get(key) or ""
+                      if name:
+                          handle.write(name + "\n")
+          print("true" if len(files) >= 300 else "false")
+          PY
+          )
+          echo "truncated=$truncated" >> "$GITHUB_OUTPUT"
+          if [ "$truncated" = "true" ]; then
+            echo "applicable=true" >> "$GITHUB_OUTPUT"
+            echo "Changed-file list is truncated. Host tests will run from git diff."
+          else
+            FILES_PATH="$FILES_PATH" bash "$GITHUB_WORKSPACE/ci/.github/scripts/run-kernel-tests.sh" --plan >> "$GITHUB_OUTPUT"
+          fi
       - name: Check out the pull request
+        if: steps.plan.outputs.applicable == 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
@@ -105,16 +163,20 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
       - name: Fetch the base commit
+        if: steps.plan.outputs.applicable == 'true' && steps.plan.outputs.truncated == 'true'
         working-directory: src
         run: |
           git remote add base "https://github.com/${{ github.repository }}.git"
           git fetch --no-tags --depth=1 base "${{ needs.prepare.outputs.base }}"
       - name: Install test libraries
+        if: steps.plan.outputs.applicable == 'true'
         run: sudo apt-get update && sudo apt-get install -y build-essential liburcu-dev pkg-config
       - name: Run the relevant kernel tests
+        if: steps.plan.outputs.applicable == 'true'
         working-directory: src
         env:
           BASE_SHA: ${{ needs.prepare.outputs.base }}
+          FILES_PATH: ${{ steps.plan.outputs.truncated != 'true' && format('{0}/changed-files.txt', runner.temp) || '' }}
         run: bash "$GITHUB_WORKSPACE/ci/.github/scripts/run-kernel-tests.sh"
 
   close:
@@ -184,6 +246,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR: ${{ needs.prepare.outputs.number }}
+          EXPECTED_SHA: ${{ needs.prepare.outputs.sha }}
         run: |
           python3 - << 'PY'
           import json, os, time, urllib.error, urllib.request
@@ -209,15 +272,28 @@ jobs:
                   detail = error.read().decode()
                   raise SystemExit(f"GitHub API {method} {url} failed: {error.code} {detail}")
 
+          expected = os.environ["EXPECTED_SHA"]
           pull = None
           for _ in range(10):
               pull = api("GET", f"{base}/pulls/{number}")
               if pull.get("merged"):
                   raise SystemExit(0)
+              if pull["head"]["sha"] != expected:
+                  raise SystemExit(0)
               if pull.get("mergeable") is not None:
                   break
               time.sleep(3)
+          if pull["head"]["sha"] != expected:
+              raise SystemExit(0)
           if not pull.get("mergeable"):
               raise SystemExit(f"Pull request {number} cannot be merged ({pull.get('mergeable_state')}).")
-          api("PUT", f"{base}/pulls/{number}/merge", {"merge_method": "merge"})
+          try:
+              api("PUT", f"{base}/pulls/{number}/merge", {
+                  "merge_method": "merge",
+                  "sha": expected,
+              })
+          except SystemExit as error:
+              if "Head branch was modified" in str(error):
+                  raise SystemExit(0)
+              raise
           PY
