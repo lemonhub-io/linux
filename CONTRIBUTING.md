@@ -73,4 +73,4 @@ A pull request that fails either rule is closed. The closing note names each mis
 
 ## Kernel CI
 
-After the proposal and the DCO sign-off pass, CI compiles the kernel and then runs the kernel tests that cover the changed files. Compilation comes first. Tests run only after that build succeeds. A failure of either step closes the pull request.
+After the proposal and the DCO sign-off pass, CI compiles the kernel and then runs the kernel tests that cover the changed files. Compilation comes first. Tests run only after that build succeeds. A failure of either step closes the pull request. When the proposal, the sign-off, the compilation, and the tests have all passed, the pull request is merged into main.
