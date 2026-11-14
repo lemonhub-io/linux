@@ -1,5 +1,7 @@
 # Pull request specification
 
+The mechanisms of this fork are described in [PROJECT.md](PROJECT.md).
+
 A pull request is accepted only when it meets both rules below. One that does not is closed.
 
 ## The description is a proposal
